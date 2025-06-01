@@ -11,14 +11,42 @@ def load_data():
     data = []
     with open('iris.csv', 'r') as f:
         reader = csv.DictReader(f)
-        for row in reader:
+        for row_num, row in enumerate(reader, start=2):  # start=2 because header is row 1
             try:
-                features = [float(row['sepal_length']), float(row['sepal_width']), 
-                           float(row['petal_length']), float(row['petal_width'])]
-                species = row['species']
+                # Check if all required columns exist
+                required_cols = ['sepal_length', 'sepal_width', 'petal_length', 'petal_width', 'species']
+                if not all(col in row for col in required_cols):
+                    print(f"Warning: Row {row_num} missing required columns, skipping")
+                    continue
+                
+                # Try to convert to float and validate
+                sepal_length = float(row['sepal_length'])
+                sepal_width = float(row['sepal_width'])
+                petal_length = float(row['petal_length'])
+                petal_width = float(row['petal_width'])
+                species = row['species'].strip()
+                
+                # Validate that values are reasonable (basic sanity check)
+                if (sepal_length < 0 or sepal_width < 0 or 
+                    petal_length < 0 or petal_width < 0):
+                    print(f"Warning: Row {row_num} has negative values, skipping")
+                    continue
+                
+                if not species:
+                    print(f"Warning: Row {row_num} has empty species, skipping")
+                    continue
+                
+                features = [sepal_length, sepal_width, petal_length, petal_width]
                 data.append((features, species))
-            except ValueError:
-                continue  # Skip rows with invalid data
+                
+            except (ValueError, KeyError) as e:
+                print(f"Warning: Row {row_num} has invalid data ({e}), skipping")
+                continue
+            except Exception as e:
+                print(f"Warning: Unexpected error in row {row_num} ({e}), skipping")
+                continue
+    
+    print(f"Successfully loaded {len(data)} valid samples")
     return data
 
 def split_data(data, test_ratio=0.2):
@@ -59,11 +87,26 @@ def calculate_accuracy(predictions, actual):
 def main():
     print("Loading iris dataset...")
     data = load_data()
+    
+    if len(data) == 0:
+        print("Error: No valid data found!")
+        return
+    
     print(f"Loaded {len(data)} samples")
+    
+    # Print species distribution
+    species_count = {}
+    for _, species in data:
+        species_count[species] = species_count.get(species, 0) + 1
+    print("Species distribution:", species_count)
     
     # Split data
     train_data, test_data = split_data(data)
     print(f"Train: {len(train_data)}, Test: {len(test_data)}")
+    
+    if len(test_data) == 0:
+        print("Error: No test data available!")
+        return
     
     # Make predictions
     print("Making predictions...")
@@ -88,6 +131,9 @@ def main():
     for label in actual:
         actual_counts[label] = actual_counts.get(label, 0) + 1
     
+    print("Prediction counts:", pred_counts)
+    print("Actual counts:", actual_counts)
+    
     # Save metrics to CSV
     with open('metrics.csv', 'w', newline='') as f:
         writer = csv.writer(f)
@@ -106,9 +152,11 @@ def main():
         'algorithm': 'KNN',
         'k': 3,
         'training_samples': len(train_data),
+        'test_samples': len(test_data),
         'accuracy': accuracy,
         'predictions_count': pred_counts,
-        'actual_count': actual_counts
+        'actual_count': actual_counts,
+        'species_distribution': species_count
     }
     
     with open('model_weights.h5', 'w') as f:  # Using .h5 name as requested
