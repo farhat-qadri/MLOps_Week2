@@ -161,6 +161,8 @@ def main():
     
     with open('model_weights.h5', 'w') as f:  # Using .h5 name as requested
         json.dump(model_data, f, indent=2)
+     with open('model.keras', 'w') as f2:
+        json.dump(model_data, f2, indent=2)
     
     print("\nFiles created:")
     print("- metrics.csv")
